@@ -1,73 +1,141 @@
 import chalk from 'chalk';
 import readlineSync from 'readline-sync';
-// 업적 업데이트 함수 추가
-import { achievements } from './achievements.js'; // 업적 데이터를 분리하여 로드
+import Achievements from './achievements.js';
 
 class Player {
-  constructor(stage) {
-    this.maxHp = 100 + (stage - 1) * 50;
-    this.hp = this.maxHp;
-    this.attackPower = 20;
-    this.gold = 0;
-    this.weapon = null;
+  constructor() {
+    this.hp = 100;
+    this.gold = 20; // 플레이어가 보유한 골드
+    this.attackPower = 20; // 기본 공격력
   }
 
-  attack(monster) {
-    const damage = Math.floor(Math.random() * 20) + 10 + this.attackPower;
-    monster.hp -= damage;
-
-    if (this.weapon && this.weapon.stealHp) {
-      const healAmount = Math.floor(damage * 0.1);
-      this.hp += healAmount;
-      console.log(chalk.green(`무기 효과로 ${healAmount}만큼 체력을 회복했습니다.`));
-    }
-
+  attack() {
+    const damage = Math.floor(Math.random() * 11) + this.attackPower; // 공격력에 따라 피해 계산
+    console.log(chalk.green(`플레이어가 ${damage}의 피해를 주었습니다.`));
     return damage;
   }
 
-  heal() {
-    const healAmount = Math.floor(Math.random() * 20) + 10;
-    this.hp += healAmount;
-    return healAmount;
+  multiAttack() {
+    const rand = Math.random();
+    let totalDamage = 0;
+
+    // 30% 확률로 연속 공격
+    if (rand < 0.3) {
+      console.log(chalk.blue('연속 공격 발동!'));
+      for (let i = 0; i < 2; i++) {
+        const damage = this.attack(); // 연속 공격 시 각 공격마다 damage 계산
+        totalDamage += damage;
+        console.log(chalk.green(`연속 공격 ${i + 1}: ${damage}의 피해!`));
+      }
+      console.log(chalk.blue(`연속 공격으로 총 ${totalDamage}의 피해를 주었습니다!`));
+    } else {
+      console.log(chalk.green('연속 공격이 발동하지 않았습니다.'));
+      // 연속 공격 실패 시 첫 번째 공격도 발생하지 않음
+      totalDamage = 0;
+    }
+
+    return totalDamage;
   }
 
-  buyWeapon(weapon) {
-    if (this.gold >= weapon.price) {
-      this.gold -= weapon.price;
-      this.weapon = weapon;
-      this.attackPower += weapon.attackBonus;
-      console.log(chalk.green(`무기 '${weapon.name}'을 구입했습니다!`));
-      // 첫 번째 무기 구매 업적 달성
-      if (!achievements[2].achieved) {
-        achievements[2].achieved = true;
-        console.log(chalk.green('첫 번째 무기 구매 업적을 달성했습니다!'));
+  buyWeapon() {
+    let validChoice = false; // 선택이 유효한지 확인하는 변수
+
+    while (!validChoice) {
+      console.log(chalk.blue(`=== 상점 ===`));
+      console.log(chalk.yellow(`1. 돌칼 - 50골드 (공격력 +10)`));
+      console.log(chalk.yellow(`2. 철칼 - 100골드 (공격력 +20)`));
+      console.log(chalk.yellow(`3. 퇴장`));
+
+      const choice = readlineSync.question('무기를 구매하시겠습니까? 선택: ');
+
+      switch (choice) {
+        case '1': // 철검 구매
+          if (this.gold >= 50) {
+            this.gold -= 50;
+            this.attackPower += 10;
+            console.log(chalk.green('돌칼을 구매하여 공격력이 +10 되었습니다.'));
+            validChoice = true; // 유효한 선택이므로 루프 종료
+          } else {
+            console.log(chalk.red('골드가 부족합니다.'));
+          }
+          break;
+
+        case '2': // 강철검 구매
+          if (this.gold >= 100) {
+            this.gold -= 100;
+            this.attackPower += 20;
+            console.log(chalk.green('철칼칼을 구매하여 공격력이 +20 되었습니다.'));
+            validChoice = true; // 유효한 선택이므로 루프 종료
+          } else {
+            console.log(chalk.red('골드가 부족합니다.'));
+          }
+          break;
+
+        case '3': // 퇴장
+          console.log(chalk.blue('상점을 떠났습니다.'));
+          validChoice = true; // 퇴장 선택 시 루프 종료
+          break;
+
+        default:
+          console.log(chalk.red('잘못된 선택입니다. 다시 시도해주세요.'));
+          break;
       }
-    } else {
-      console.log(chalk.red('골드가 부족합니다.'));
-      return false; // 무기 구입 실패 false
     }
-    return true; // 무기 구입 성공 true
   }
 }
 
 class Monster {
   constructor(stage) {
-    this.hp = 100 + (stage - 1) * 20;
+    this.hp = 100 + (stage - 1) * 10; // 각 스테이지마다 몬스터 HP 증가
   }
 
-  attack(player) {
-    const damage = Math.floor(Math.random() * 5) + 5;
-    player.hp -= damage;
+  attack() {
+    const damage = Math.floor(Math.random() * 11) + 10;
+    console.log(chalk.red(`몬스터가 ${damage}의 피해를 주었습니다.`));
     return damage;
+  }
+
+  dropGold() {
+    // 몬스터 처치 시 10~50골드 사이의 랜덤 골드 드랍
+    const gold = Math.floor(Math.random() * 41) + 10;
+    console.log(chalk.yellow(`몬스터가 ${gold}골드를 드랍했습니다.`));
+    return gold;
   }
 }
 
-class Weapon {
-  constructor(name, attackBonus, stealHp, price) {
-    this.name = name;
-    this.attackBonus = attackBonus;
-    this.stealHp = stealHp;
-    this.price = price;
+// 카운터 기능: 30% 확률로 몬스터의 공격을 막고, 2배 데미지로 반격
+function counterAttack(player, monster, logs) {
+  const randomChance = Math.random(); // 0~1 사이의 랜덤 값
+
+  console.log(chalk.yellow('카운터 어택을 시도합니다...'));
+
+  if (randomChance < 0.3) {
+    // 30% 확률로 카운터 발동
+    console.log(chalk.green('카운터 발동! 몬스터의 공격을 막고 반격합니다.'));
+    const counterDamage = player.attackPower * 2; // 2배 데미지
+    monster.hp -= counterDamage;
+    console.log(chalk.red(`반격 데미지: ${counterDamage}`));
+    console.log(chalk.red(`몬스터 체력: ${monster.hp}`));
+
+    // 카운터 성공 로그 추가
+    logs.push(
+      chalk.green(
+        `카운터 발동! 몬스터의 공격을 막고 반격하여 ${counterDamage}의 피해를 주었습니다.`,
+      ),
+    );
+  } else {
+    // 카운터 실패 시
+    console.log(chalk.red('카운터 실패!'));
+    const monsterDamage = monster.attack(); // 몬스터가 플레이어에게 피해를 입힘
+    player.hp -= monsterDamage;
+    console.log(chalk.red(`몬스터의 반격! 플레이어의 HP가 ${monsterDamage}만큼 감소하였습니다.`));
+
+    if (player.hp <= 0) {
+      console.log(chalk.red('플레이어가 사망하였습니다.'));
+    }
+
+    // 카운터 실패 로그 추가
+    logs.push(chalk.red('카운터 실패! 몬스터의 공격을 피하지 못했습니다.'));
   }
 }
 
@@ -75,225 +143,139 @@ function displayStatus(stage, player, monster) {
   console.log(chalk.magentaBright(`\n=== Current Status ===`));
   console.log(
     chalk.cyanBright(`| Stage: ${stage} `) +
-      chalk.blueBright(`| 플레이어 HP: ${player.hp}`) +
-      chalk.redBright(`| 몬스터 HP: ${monster.hp}`) +
-      chalk.yellowBright(`| 골드: ${player.gold} |`),
+      chalk.blueBright(
+        `| 플레이어 HP: ${player.hp} | 골드: ${player.gold} | 공격력: ${player.attackPower}`,
+      ),
   );
+  console.log(chalk.redBright(`| 몬스터 HP: ${monster.hp} |`));
   console.log(chalk.magentaBright(`=====================\n`));
 }
 
-const battle = async (stage, player, monster, logs) => {
-  console.log(
-    chalk.cyanBright(`\n[스테이지 ${stage} 시작] 현재 플레이어 공격력: ${player.attackPower}`),
-  );
+const battle = async (stage, player, monster) => {
+  let logs = [];
 
   while (player.hp > 0 && monster.hp > 0) {
+    console.clear();
     displayStatus(stage, player, monster);
+
     logs.forEach((log) => console.log(log));
 
-    console.log(chalk.green(`\n1. 공격한다 2. 연속 공격. 3. 아무것도 하지 않는다.`));
+    console.log(chalk.green(`\n1. 공격한다 2. 연속 공격 3. 카운터 어택 4. 상점에 간다`));
     const choice = readlineSync.question('당신의 선택은? ');
 
-    console.log(chalk.green(`${choice}를 선택하셨습니다.`));
-
     switch (choice) {
-      case '1': {
-        const playerDamage = player.attack(monster);
-        console.log(chalk.green(`플레이어가 몬스터에게 ${playerDamage}의 피해를 입혔습니다.`));
-        break;
-      }
-      case '2': {
-        if (Math.random() < 0.3) {
-          const firstAttackDamage = player.attack(monster);
-          console.log(
-            chalk.green(`플레이어가 몬스터에게 ${firstAttackDamage}의 피해를 입혔습니다.`),
-          );
+      case '1': // 일반 공격
+        const damage = player.attack();
+        monster.hp -= damage;
+        logs.push(chalk.green(`플레이어가 공격하여 몬스터의 HP가 ${damage}만큼 감소하였습니다.`));
 
-          const secondAttackDamage = player.attack(monster);
-          console.log(
+        if (monster.hp <= 0) {
+          const gold = monster.dropGold(); // 몬스터가 골드 드랍
+          player.gold += gold;
+          logs.push(chalk.blueBright('몬스터를 처치하였습니다!'));
+          break;
+        }
+
+        const monsterDamage = monster.attack();
+        player.hp -= monsterDamage;
+        logs.push(chalk.red(`몬스터의 반격! 플레이어의 HP가 ${monsterDamage}만큼 감소하였습니다.`));
+
+        if (player.hp <= 0) {
+          logs.push(chalk.red('플레이어가 사망하였습니다.'));
+          break;
+        }
+        break;
+
+      case '2': // 연속 공격
+        const multiDamage = player.multiAttack();
+        monster.hp -= multiDamage;
+        if (multiDamage > 0) {
+          logs.push(
             chalk.green(
-              `플레이어가 30% 확률로 추가 공격을 성공했습니다! 몬스터에게 ${secondAttackDamage}의 피해를 입혔습니다.`,
+              `플레이어가 연속 공격하여 몬스터의 HP가 ${multiDamage}만큼 감소하였습니다.`,
             ),
           );
         } else {
-          console.log(chalk.yellow(`연속 공격에 실패했습니다.`));
+          logs.push(chalk.green('연속 공격 실패...'));
+        }
+
+        if (monster.hp <= 0) {
+          const gold = monster.dropGold(); // 몬스터가 골드 드랍
+          player.gold += gold;
+          logs.push(chalk.blueBright('몬스터를 처치하였습니다!'));
+          break;
+        }
+
+        const monsterDamage2 = monster.attack();
+        player.hp -= monsterDamage2;
+        logs.push(
+          chalk.red(`몬스터의 반격! 플레이어의 HP가 ${monsterDamage2}만큼 감소하였습니다.`),
+        );
+
+        if (player.hp <= 0) {
+          logs.push(chalk.red('플레이어가 사망하였습니다.'));
+          break;
         }
         break;
-      }
-      case '3':
-        console.log(chalk.yellow(`플레이어는 아무것도 하지 않았습니다.`));
+
+      case '3': // 카운터
+        counterAttack(player, monster, logs);
         break;
+
+      case '4': // 상점
+        player.buyWeapon(); // 상점으로 이동
+        break;
+
       default:
-        console.log(chalk.red(`잘못된 선택입니다. 다시 선택해 주세요.`));
-        continue;
-    }
-
-    if (monster.hp > 0) {
-      const monsterDamage = monster.attack(player);
-      console.log(chalk.red(`몬스터가 플레이어에게 ${monsterDamage}의 피해를 입혔습니다.`));
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-
-  if (monster.hp <= 0) {
-    const goldDropped = Math.floor(Math.random() * 50) + 20;
-    player.gold += goldDropped;
-    console.log(
-      chalk.yellowBright(`몬스터를 처치하였습니다! 몬스터가 ${goldDropped} 골드를 드랍했습니다.`),
-    );
-
-    player.gold += goldDropped;
-
-    const healAmount = Math.floor(player.maxHp * 0.3);
-    player.hp = Math.min(player.hp + healAmount, player.maxHp);
-    console.log(
-      chalk.green(
-        `스테이지 클리어로 체력이 ${healAmount}만큼 회복되었습니다. 현재 체력: ${player.hp}/${player.maxHp}`,
-      ),
-    );
-
-    updateAchievements(player); // 스테이지 클리어 후 업적 갱신
-    await stageClearOptions(stage, player, logs);
-    logs.length = 0;
-  } else if (player.hp <= 0) {
-    console.log(chalk.red(`플레이어가 쓰러졌습니다. 게임 오버!`));
-  }
-};
-
-const weapons = [
-  new Weapon('BF소드', 10, false, 50),
-  new Weapon('흡혈의 낫', 20, true, 100),
-  new Weapon('몰락한 왕의 검', 30, true, 200),
-];
-
-const stageClearOptions = async (stage, player, logs) => {
-  console.log(chalk.magentaBright(`\n스테이지 ${stage} 클리어!`));
-  console.log(chalk.green(`1. 랜덤 공격력 증가`));
-  console.log(chalk.yellow(`2. 랜덤 체력 회복`));
-  console.log(chalk.blue(`3. 상점 방문 (골드: ${player.gold})`));
-  console.log(chalk.red(`4. 게임 종료`));
-
-  const choice = readlineSync.question('옵션을 선택하세요: ');
-
-  const availableWeapons = weapons.filter((weapon) => weapon !== player.weapon);
-
-  switch (choice) {
-    case '1': {
-      const increaseAmount = Math.floor(Math.random() * 10) + 5;
-      player.attackPower += increaseAmount;
-      console.log(
-        chalk.green(
-          `플레이어의 공격력이 ${increaseAmount}만큼 증가했습니다. 현재 공격력: ${player.attackPower}`,
-        ),
-      );
-      break;
-    }
-    case '2': {
-      const healAmount = Math.floor(Math.random() * 20) + 10;
-      player.hp += healAmount;
-      console.log(chalk.green(`플레이어가 ${healAmount}만큼 체력을 회복했습니다.`));
-      break;
-    }
-    case '3': {
-      if (availableWeapons.length === 0) {
-        console.log(chalk.yellow('상점에 구매 가능한 무기가 없습니다.'));
+        logs.push(chalk.red('잘못된 선택입니다. 다시 선택해주세요.'));
         break;
-      }
-
-      let inShop = true;
-      while (inShop) {
-        console.log(chalk.blueBright('\n상점에서 구매할 수 있는 무기 목록:'));
-        availableWeapons.forEach((weapon, index) => {
-          console.log(
-            chalk.green(
-              `${index + 1}. ${weapon.name} - 공격력 +${weapon.attackBonus}, 가격: ${weapon.price} 골드`,
-            ),
-          );
-        });
-        console.log(chalk.red(`0. 상점 나가기`)); // 상점 나가기 옵션 추가
-
-        const weaponChoice = readlineSync.question('구입할 무기 번호를 선택하세요: ');
-
-        if (weaponChoice === '0') {
-          inShop = false; // 상점 나가기
-          console.log(chalk.yellow('상점을 나갑니다.'));
-        } else {
-          const weaponIndex = parseInt(weaponChoice) - 1;
-          const weapon = availableWeapons[parseInt(weaponChoice) - 1];
-
-          if (weapon) {
-            const purchased = player.buyWeapon(weapon);
-            if (purchased) {
-              inShop = false; // 무기 구매 성공 시 상점 나가기
-            } else {
-              console.log(chalk.red('골드가 부족합니다. 다른 무기를 선택하거나 상점을 나가세요.'));
-            }
-          } else {
-            console.log(chalk.red('잘못된 선택입니다. 다시 선택해주세요.'));
-          }
-        }
-      }
-      break;
     }
-    case '4':
-      console.log(chalk.red('게임이 종료되었습니다.'));
-      process.exit();
-      break;
-    default:
-      console.log(chalk.red('잘못된 선택입니다. 다시 선택해 주세요.'));
-      await stageClearOptions(stage, player, logs);
-      break;
+  }
+
+  // 몬스터 처치 시 골드 드랍과 스테이지 클리어 로그 출력
+  if (monster.hp <= 0) {
+    const gold = monster.dropGold(); // 몬스터가 골드 드랍
+    player.gold += gold;
+    logs.push(chalk.yellow(`몬스터 처치 후 ${gold}골드를 드랍했습니다.`));
+    logs.push(chalk.blueBright(`스테이지 ${stage} 클리어!`));
+
+    // 클리어 후 잠시 대기
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // 2초 대기
   }
 };
 
-function updateAchievements(player) {
-  // 첫 번째 게임 시작 업적
-  if (!achievements[0].achieved) {
-    achievements[0].achieved = true;
-    console.log(chalk.green('첫 번째 게임 시작 업적을 달성했습니다!'));
-  }
-
-  // 100골드 획득 업적
-  if (player.gold >= 100 && !achievements[1].achieved) {
-    achievements[1].achieved = true;
-    console.log(chalk.green('100골드 획득 업적을 달성했습니다!'));
-  }
-
-  // 첫 번째 무기 구매 업적
-  if (player.weapon && !achievements[2].achieved) {
-    achievements[2].achieved = true;
-    console.log(chalk.green('첫 번째 무기 구매 업적을 달성했습니다!'));
-  }
-}
-
-export async function startGame() {
+export async function startGame(achievements) {
   console.clear();
+  const player = new Player();
   let stage = 1;
-  const player = new Player(stage);
-  let logs = []; // 로그 배열 초기화
-
-  updateAchievements(player); // 첫 번째 게임 시작 업적 갱신
 
   while (stage <= 10 && player.hp > 0) {
-    const monster = new Monster(stage); // 현재 스테이지에 맞는 몬스터 생성
-    await battle(stage, player, monster, logs); // 전투 시작
+    const monster = new Monster(stage);
+    await battle(stage, player, monster);
 
-    if (monster.hp <= 0) {
-      console.log(chalk.green(`스테이지 ${stage} 클리어!`));
-      stage++;
-    } else if (player.hp <= 0) {
-      console.log(chalk.red(`게임 오버!`));
+    if (player.hp <= 0) {
+      console.log(chalk.red('게임 오버!'));
       break;
     }
 
-    logs = []; // 스테이지 종료 후 로그 초기화
+    player.hp = Math.min(player.hp + 70, 100); // 최대 HP는 100으로 제한
+    console.log(
+      chalk.green(`스테이지 ${stage} 클리어! HP가 50만큼 회복되었습니다. 현재 HP: ${player.hp}`),
+    );
+
+    if (stage === 1) {
+      achievements.achieve('firstStageClear'); // 첫 번째 스테이지 클리어 업적
+    }
+    if (player.gold >= 100) {
+      achievements.achieve('collect100Gold'); // 100골드 모은 업적
+    }
+
+    stage++;
   }
 
-  if (stage > 10) {
+  if (player.hp > 0) {
     console.log(chalk.green('축하합니다! 모든 스테이지를 클리어했습니다.'));
+    achievements.achieve('defeatFinalBoss'); // 최종 보스 처치 업적
   }
-
-  console.clear();
-  logs.forEach((log) => console.log(log)); // 마지막 로그 출력
+  achievements.showAchievements();
 }
